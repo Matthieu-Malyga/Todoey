@@ -16,15 +16,25 @@ class ToDoListViewController: UITableViewController {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
 
-        for index in 1...20 {
+        for index in 1...5 {
             let item = Item()
             item.title = "Task \(index)"
             itemArray.append(item)
         }
 
-//        if let itemArray = UserDefaults.standard.object(forKey: "itemArray") as? [Item] {
-//            self.itemArray = itemArray
-//        }
+        if let itemsData = UserDefaults.standard.object(forKey: "itemArray") as? Data {
+            if let itemArray = try? PropertyListDecoder().decode([Item].self, from: itemsData) {
+                self.itemArray = itemArray
+            }
+        }
+    }
+
+    //MARK: - Helper methods
+
+    private func save() {
+        if let itemsData = try? PropertyListEncoder().encode(itemArray) {
+            UserDefaults.standard.set(itemsData, forKey: "itemArray")
+        }
     }
 
     //MARK: - TableView DataSource methods
@@ -42,6 +52,7 @@ class ToDoListViewController: UITableViewController {
         let item = itemArray[indexPath.row]
         cell.textLabel?.text = item.title
         cell.accessoryType = item.done ? .checkmark : .none
+        save()
         return cell
     }
 
@@ -64,7 +75,7 @@ class ToDoListViewController: UITableViewController {
             let item = Item()
             item.title = textField.text!
 			self.itemArray.append(item)
-            //UserDefaults.standard.set(self.itemArray, forKey: "itemArray")
+            self.save()
             self.tableView.reloadData()
         }
         alert.addTextField() { alertTextField in
