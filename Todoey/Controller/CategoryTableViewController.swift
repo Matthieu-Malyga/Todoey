@@ -7,27 +7,34 @@
 //
 
 import UIKit
-import CoreData
+import RealmSwift
 
 class CategoryTableViewController: UITableViewController {
 
-    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
-    var categoryArray = [Category]()
+    lazy var realm: Realm = {
+		return try! Realm()
+    }()
+
+    var categories: Results<Category>?
 
     override func viewDidLoad() {
         super.viewDidLoad()
 		loadData()
     }
 
-    private func loadData(request: NSFetchRequest<Category> = Category.fetchRequest()) {
-        if let fetchedCategoryArray = try? context.fetch(request) {
-			categoryArray = fetchedCategoryArray
-            tableView.reloadData()
-        }
+    private func loadData() {
+		categories = realm.objects(Category.self)
+        tableView.reloadData()
     }
 
-    private func saveData() {
-		try? context.save()
+    private func saveData(category: Category) {
+        do {
+            try realm.write {
+				realm.add(category)
+            }
+        } catch {
+            print("Error saving category : \(error)")
+        }
     }
 
     @IBAction func addButtonPressed(_ sender: UIBarButtonItem) {
@@ -35,10 +42,9 @@ class CategoryTableViewController: UITableViewController {
 
         let alert = UIAlertController(title: "Add New Todoey Category", message: "", preferredStyle: .alert)
         let action = UIAlertAction(title: "Add Category", style: .default) { action in
-            let category = Category(context: self.context)
-            category.name = textField.text
-            self.categoryArray.append(category)
-            self.saveData()
+            let category = Category()
+            category.name = textField.text!
+            self.saveData(category: category)
             self.tableView.reloadData()
         }
         alert.addTextField() { alertTextField in
@@ -58,16 +64,14 @@ class CategoryTableViewController: UITableViewController {
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         // #warning Incomplete implementation, return the number of rows
-        return categoryArray.count
+        return categories?.count ?? 1
     }
 
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "CategoryCell", for: indexPath)
 
         // Configure the cell...
-        if let categoryName = categoryArray[indexPath.row].name {
-            cell.textLabel?.text = categoryName
-        }
+        cell.textLabel?.text = categories?[indexPath.row].name ?? "No Categories Defined Yet"
 
         return cell
     }
@@ -87,17 +91,17 @@ class CategoryTableViewController: UITableViewController {
     */
 
     // Override to support editing the table view.
-    override func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
-        if editingStyle == .delete {
-            // Delete the row from the data source
-            context.delete(categoryArray[indexPath.row])
-            categoryArray.remove(at: indexPath.row)
-            tableView.deleteRows(at: [indexPath], with: .fade)
-            saveData()
-        } else if editingStyle == .insert {
-            // Create a new instance of the appropriate class, insert it into the array, and add a new row to the table view
-        }    
-    }
+//    override func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
+//        if editingStyle == .delete {
+//            // Delete the row from the data source
+//            context.delete(categories[indexPath.row])
+//            categories.remove(at: indexPath.row)
+//            tableView.deleteRows(at: [indexPath], with: .fade)
+//            saveData()
+//        } else if editingStyle == .insert {
+//            // Create a new instance of the appropriate class, insert it into the array, and add a new row to the table view
+//        }    
+//    }
 
     /*
     // Override to support rearranging the table view.
@@ -118,14 +122,11 @@ class CategoryTableViewController: UITableViewController {
 
     // In a storyboard-based application, you will often want to do a little preparation before navigation
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-        // Get the new view controller using segue.destination.
-        // Pass the selected object to the new view controller.
-        if let selectedCategoryIndex = tableView.indexPathForSelectedRow?.row {
-        	if segue.identifier == "GoToItems", let destinationViewController = segue.destination as? ToDoListViewController {
-            	destinationViewController.selectedCategory = categoryArray[selectedCategoryIndex]
-            }
-        }
+		let destinationVC = segue.destination as! ToDoListViewController
 
+        if let indexPath = tableView.indexPathForSelectedRow {
+            destinationVC.selectedCategory = categories?[indexPath.row]
+        }
     }
 
 
